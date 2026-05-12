@@ -155,5 +155,8 @@ export type Appointment = {
   slotId: ID
   createdAt: string // ISO
   notes?: string
+  /** Set when booking from the modal for display on the patient profile */
+  slotDateLabel?: string
+  slotTimeLabel?: string
 }
 

@@ -285,11 +285,14 @@ export function BookAppointmentModal({
               fullWidth
               onClick={() => {
                 if (!doctorId || !slotId) return
+                const slot = week.flatMap((d) => d.available).find((s) => s.id === slotId)
                 bookAppointment({
                   patientId,
                   clientId: patient.clientId,
                   doctorId,
                   slotId,
+                  slotDateLabel: slot?.dayLabel,
+                  slotTimeLabel: slot?.label,
                 })
                 onClose()
               }}

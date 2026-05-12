@@ -21,8 +21,12 @@ export function PatientProfilePage() {
   const setPatientStatus = useHealixStore((s) => s.setPatientStatus)
   const convos = useHealixStore((s) => (id ? s.conversationsByPatientId[id] ?? [] : []))
   const events = useHealixStore((s) => (id ? s.timelineByPatientId[id] ?? [] : []))
+  const appointments = useHealixStore((s) => s.appointments)
+  const doctors = useHealixStore((s) => s.doctors)
 
-  const [tab, setTab] = useState<'overview' | 'activity' | 'conversations'>('overview')
+  const [tab, setTab] = useState<'overview' | 'activity' | 'conversations' | 'bookings'>(
+    'overview',
+  )
   const [convFilter, setConvFilter] = useState<'all' | 'ai' | 'cm'>('all')
   const [callOpen, setCallOpen] = useState(false)
   const [bookOpen, setBookOpen] = useState(false)
@@ -32,6 +36,14 @@ export function PatientProfilePage() {
     if (convFilter === 'all') return convos
     return convos.filter((c) => c.kind === convFilter)
   }, [convos, convFilter])
+
+  const patientBookings = useMemo(() => {
+    if (!id) return []
+    return appointments
+      .filter((a) => a.patientId === id)
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  }, [appointments, id])
 
   if (!patient) {
     return (
@@ -161,6 +173,18 @@ export function PatientProfilePage() {
         >
           Conversations
         </button>
+        <button
+          type="button"
+          className={[
+            'rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200',
+            tab === 'bookings'
+              ? 'bg-healix-teal/15 text-healix-navy'
+              : 'bg-white text-slate-700 hover:bg-gray-50',
+          ].join(' ')}
+          onClick={() => setTab('bookings')}
+        >
+          Bookings
+        </button>
       </div>
 
       {tab === 'overview' ? (
@@ -289,6 +313,64 @@ export function PatientProfilePage() {
               </div>
             ) : null}
           </div>
+        </div>
+      ) : null}
+
+      {tab === 'bookings' ? (
+        <div className="space-y-3">
+          {patientBookings.map((b) => {
+            const doctor = doctors.find((d) => d.id === b.doctorId)
+            const whenParts = [b.slotDateLabel, b.slotTimeLabel].filter(Boolean)
+            let appointmentWhen: string
+            if (whenParts.length > 0) {
+              appointmentWhen = whenParts.join(' · ')
+            } else {
+              const m = b.slotId.match(/(\d{4}-\d{2}-\d{2})/)
+              appointmentWhen = m
+                ? new Date(`${m[1]}T12:00:00`).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : 'Appointment slot'
+            }
+            return (
+              <div
+                key={b.id}
+                className="healix-card flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="flex min-w-0 gap-4">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-healix-teal/10 text-healix-navy">
+                    <CalendarDays className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900">
+                      {doctor?.name ?? 'Unknown doctor'}
+                    </div>
+                    <div className="mt-0.5 text-xs text-slate-500">
+                      {[doctor?.department, doctor?.hospital].filter(Boolean).join(' · ') || '—'}
+                    </div>
+                    <div className="mt-2 text-sm text-slate-700">{appointmentWhen}</div>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right text-xs text-slate-500 sm:pt-1">
+                  <div className="font-semibold uppercase tracking-wide text-slate-400">
+                    Booked
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-slate-700">
+                    {new Date(b.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+          {patientBookings.length === 0 ? (
+            <div className="healix-card px-6 py-6 text-sm text-slate-600">
+              No bookings yet. Use{' '}
+              <span className="font-semibold text-slate-800">Book Appointment</span> above to add
+              one; it will appear here as soon as it is confirmed.
+            </div>
+          ) : null}
         </div>
       ) : null}
 
