@@ -1,8 +1,12 @@
+import { defaultWeeklySchedule, emptyWeeklySchedule } from '../lib/doctorSchedule'
 import type {
   AppointmentSlot,
   Client,
   Conversation,
   Doctor,
+  DoctorWeeklySchedule,
+  Hospital,
+  ID,
   Patient,
   TimelineEvent,
 } from '../types'
@@ -56,8 +60,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-7845123',
     zone: 'Muscat',
     clientId: 'c-omantel',
-    status: 'active',
     priority: 'moderate',
+    stage: 'fresh',
     registrationDate: isoDaysAgo(64),
     lastActivityAt: isoDaysAgo(2),
     lastContactAt: isoDaysAgo(4),
@@ -71,8 +75,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-2201459',
     zone: 'Seeb',
     clientId: 'c-omantel',
-    status: 'inactive',
     priority: 'none',
+    stage: 'cold',
     registrationDate: isoDaysAgo(120),
     lastActivityAt: isoDaysAgo(18),
     lastContactAt: isoDaysAgo(21),
@@ -86,8 +90,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-4481207',
     zone: 'Sohar',
     clientId: 'c-alnoor',
-    status: 'active',
     priority: 'urgent',
+    stage: 'active',
     registrationDate: isoDaysAgo(14),
     lastActivityAt: isoDaysAgo(1),
     lastContactAt: isoDaysAgo(1),
@@ -101,8 +105,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-9912203',
     zone: 'Nizwa',
     clientId: 'c-alnoor',
-    status: 'active',
     priority: 'low',
+    stage: 'unattended',
     registrationDate: isoDaysAgo(33),
     lastActivityAt: isoDaysAgo(5),
     lastContactAt: isoDaysAgo(9),
@@ -115,8 +119,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-5120044',
     zone: 'Sur',
     clientId: 'c-dhofarlog',
-    status: 'active',
     priority: 'moderate',
+    stage: 'fresh',
     registrationDate: isoDaysAgo(51),
     lastActivityAt: isoDaysAgo(3),
     lastContactAt: isoDaysAgo(8),
@@ -129,8 +133,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-3030811',
     zone: 'Salalah',
     clientId: 'c-dhofarlog',
-    status: 'active',
     priority: 'none',
+    stage: 'unattended',
     registrationDate: isoDaysAgo(75),
     lastActivityAt: isoDaysAgo(11),
     lastContactAt: isoDaysAgo(14),
@@ -143,8 +147,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-6100777',
     zone: 'Barka',
     clientId: 'c-alnoor',
-    status: 'active',
     priority: 'low',
+    stage: 'active',
     registrationDate: isoDaysAgo(27),
     lastActivityAt: isoDaysAgo(7),
     lastContactAt: isoDaysAgo(7),
@@ -157,8 +161,8 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-9312309',
     zone: 'Muscat',
     clientId: 'c-omantel',
-    status: 'active',
     priority: 'moderate',
+    stage: 'fresh',
     registrationDate: isoDaysAgo(19),
     lastActivityAt: isoDaysAgo(2),
     lastContactAt: isoDaysAgo(2),
@@ -171,12 +175,17 @@ export const patientsSeed: Patient[] = [
     nationalId: 'OMN-9049922',
     zone: 'Ibri',
     clientId: 'c-alnoor',
-    status: 'inactive',
     priority: 'none',
+    stage: 'cold',
     registrationDate: isoDaysAgo(190),
     lastActivityAt: isoDaysAgo(40),
     lastContactAt: isoDaysAgo(45),
   },
+]
+
+export const hospitalsSeed: Hospital[] = [
+  { id: 'h-001', name: 'Healix Hospital Muscat', zone: 'Muscat' },
+  { id: 'h-002', name: 'Healix Specialty Center', zone: 'Seeb' },
 ]
 
 export const doctorsSeed: Doctor[] = [
@@ -185,7 +194,7 @@ export const doctorsSeed: Doctor[] = [
     name: 'Dr. Layla Al-Sulaimi',
     department: 'Cardiology',
     specialty: 'Interventional Cardiology',
-    hospital: 'Healix Hospital Muscat',
+    hospitalId: 'h-001',
     availableThisWeek: true,
   },
   {
@@ -193,7 +202,7 @@ export const doctorsSeed: Doctor[] = [
     name: 'Dr. Omar Al-Hashmi',
     department: 'Internal Medicine',
     specialty: 'General Medicine',
-    hospital: 'Healix Hospital Muscat',
+    hospitalId: 'h-001',
     availableThisWeek: true,
   },
   {
@@ -201,7 +210,7 @@ export const doctorsSeed: Doctor[] = [
     name: 'Dr. Sara Al-Mahrooqi',
     department: 'Neurology',
     specialty: 'Headache & Migraine',
-    hospital: 'Healix Specialty Center',
+    hospitalId: 'h-002',
     availableThisWeek: false,
   },
   {
@@ -209,7 +218,7 @@ export const doctorsSeed: Doctor[] = [
     name: 'Dr. Nasser Al-Busaidi',
     department: 'Orthopedics',
     specialty: 'Spine & Back Pain',
-    hospital: 'Healix Specialty Center',
+    hospitalId: 'h-002',
     availableThisWeek: true,
   },
   {
@@ -217,10 +226,18 @@ export const doctorsSeed: Doctor[] = [
     name: 'Dr. Maha Al-Amri',
     department: 'Pulmonology',
     specialty: 'Respiratory Medicine',
-    hospital: 'Healix Hospital Muscat',
+    hospitalId: 'h-001',
     availableThisWeek: true,
   },
 ]
+
+export const doctorSchedulesSeed: Record<ID, DoctorWeeklySchedule> = {
+  'd-001': defaultWeeklySchedule('d-001'),
+  'd-002': defaultWeeklySchedule('d-002'),
+  'd-003': emptyWeeklySchedule('d-003'),
+  'd-004': defaultWeeklySchedule('d-004'),
+  'd-005': defaultWeeklySchedule('d-005'),
+}
 
 export const appointmentSlotsSeed: AppointmentSlot[] = [
   {
@@ -328,7 +345,8 @@ export const conversationsSeed: Conversation[] = [
     caseForm: {
       zone: 'Sohar',
       symptoms: ['Chest Pain', 'Shortness of Breath'],
-      preferredTimeRange: { preset: 'morning_8_12' },
+      preferredDates: [new Date().toISOString().slice(0, 10)],
+      preferredTimeSlots: ['08:00–08:30', '09:00–09:30'],
       aiRecommendation: {
         department: 'Cardiology',
         suggestedDoctors: [

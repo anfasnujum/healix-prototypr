@@ -1,9 +1,12 @@
 import { NavLink } from 'react-router-dom'
 import {
   Building2,
+  ClipboardList,
+  Hospital,
   LayoutDashboard,
   LogOut,
   Settings,
+  Stethoscope,
   Users,
 } from 'lucide-react'
 
@@ -69,8 +72,11 @@ export function Sidebar() {
 
         <nav className="mt-4 flex flex-col gap-1 px-2">
           <SidebarLink to="/" label="Dashboard" icon={LayoutDashboard} />
+          <SidebarLink to="/bench" label="Bench" icon={ClipboardList} />
           <SidebarLink to="/patients" label="Patients" icon={Users} />
           <SidebarLink to="/clients" label="Clients" icon={Building2} />
+          <SidebarLink to="/hospitals" label="Hospitals" icon={Hospital} />
+          <SidebarLink to="/doctors" label="Doctors" icon={Stethoscope} />
         </nav>
 
         <div className="mt-auto px-2">

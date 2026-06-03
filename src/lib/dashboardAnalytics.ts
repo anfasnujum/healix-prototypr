@@ -1,9 +1,11 @@
 import { format, startOfDay, subDays } from 'date-fns'
+import { doctorHospitalName, hospitalsById } from './hospitalLookup'
 import type {
   Appointment,
   Client,
   Conversation,
   Doctor,
+  Hospital,
   ID,
   Patient,
   TimelineEvent,
@@ -116,6 +118,7 @@ function bump(map: Map<string, number>, key: string, n = 1) {
 export function computeDashboardAnalytics(
   patients: Patient[],
   clients: Client[],
+  hospitals: Hospital[],
   doctors: Doctor[],
   appointments: Appointment[],
   conversationsByPatientId: Record<ID, Conversation[]>,
@@ -200,16 +203,18 @@ export function computeDashboardAnalytics(
 
   let urgentActiveUnbooked = 0
   for (const p of cohort) {
-    if (p.status !== 'active' || p.priority !== 'urgent') continue
+    if (p.stage === 'cold' || p.priority !== 'urgent') continue
     if (!patientHasBooking(p.id, appointments, timelineByPatientId))
       urgentActiveUnbooked += 1
   }
 
   const hospitalApptMap = new Map<string, number>()
   const doctorById = Object.fromEntries(doctors.map((d) => [d.id, d]))
+  const hospitalMap = hospitalsById(hospitals)
   for (const a of appointments) {
     if (!cohortIds.has(a.patientId)) continue
-    const h = doctorById[a.doctorId]?.hospital ?? 'Unknown hospital'
+    const doc = doctorById[a.doctorId]
+    const h = doctorHospitalName(doc, hospitals, hospitalMap)
     bump(hospitalApptMap, h)
   }
 
@@ -236,7 +241,7 @@ export function computeDashboardAnalytics(
       clientName: cl.name,
       active: cl.status === 'active',
       patients: cPatients.length,
-      activePatients: cPatients.filter((p) => p.status === 'active').length,
+      activePatients: cPatients.filter((p) => p.stage !== 'cold').length,
       callsInPeriod: callsHere,
       bookedPatients: booked,
       navigatedPatients: nav.size,
@@ -246,10 +251,11 @@ export function computeDashboardAnalytics(
 
   const hospitalByDoctor = new Map<string, { doctors: number; avail: number }>()
   for (const d of doctors) {
-    const cur = hospitalByDoctor.get(d.hospital) ?? { doctors: 0, avail: 0 }
+    const hName = doctorHospitalName(d, hospitals, hospitalMap)
+    const cur = hospitalByDoctor.get(hName) ?? { doctors: 0, avail: 0 }
     cur.doctors += 1
     if (d.availableThisWeek) cur.avail += 1
-    hospitalByDoctor.set(d.hospital, cur)
+    hospitalByDoctor.set(hName, cur)
   }
   const doctorSupply = [...hospitalByDoctor.entries()].map(([hospital, v]) => ({
     hospital,
@@ -283,7 +289,7 @@ export function computeDashboardAnalytics(
     cohortPatients: cohort,
     kpis: {
       totalPatients: cohort.length,
-      activePatients: cohort.filter((p) => p.status === 'active').length,
+      activePatients: cohort.filter((p) => p.stage !== 'cold').length,
       newRegistrationsInPeriod,
       callsInPeriod: callsTotal,
       aiCallsInPeriod: aiCalls,

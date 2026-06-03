@@ -8,11 +8,11 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { OMAN_ZONES } from '../mock/constants'
 import { useHealixStore } from '../store/useHealixStore'
-import type { PriorityLevel, Zone } from '../types'
+import type { PatientStage, PriorityLevel, Zone } from '../types'
 
 type FilterState = {
   zone?: Zone | 'all'
-  status?: 'active' | 'inactive' | 'all'
+  stage?: PatientStage | 'all'
   priority?: PriorityLevel | 'all'
   clientId?: string | 'all'
 }
@@ -23,6 +23,7 @@ export function PatientsPage() {
   const patients = useHealixStore((s) => s.patients)
   const addPatient = useHealixStore((s) => s.addPatient)
   const deletePatient = useHealixStore((s) => s.deletePatient)
+  const setPatientStage = useHealixStore((s) => s.setPatientStage)
 
   const clientsById = useMemo(
     () => Object.fromEntries(clients.map((c) => [c.id, c])),
@@ -32,7 +33,7 @@ export function PatientsPage() {
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<FilterState>({
     zone: 'all',
-    status: 'all',
+    stage: 'all',
     priority: 'all',
     clientId: 'all',
   })
@@ -48,7 +49,7 @@ export function PatientsPage() {
     const q = query.trim().toLowerCase()
     return patients.filter((p) => {
       if (filters.zone && filters.zone !== 'all' && p.zone !== filters.zone) return false
-      if (filters.status && filters.status !== 'all' && p.status !== filters.status)
+      if (filters.stage && filters.stage !== 'all' && p.stage !== filters.stage)
         return false
       if (
         filters.priority &&
@@ -110,17 +111,19 @@ export function PatientsPage() {
           </label>
 
           <label className="block">
-            <div className="mb-1 text-sm font-medium text-slate-800">Status</div>
+            <div className="mb-1 text-sm font-medium text-slate-800">Stage</div>
             <select
               className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
-              value={filters.status ?? 'all'}
+              value={filters.stage ?? 'all'}
               onChange={(e) =>
-                setFilters((s) => ({ ...s, status: e.target.value as FilterState['status'] }))
+                setFilters((s) => ({ ...s, stage: e.target.value as FilterState['stage'] }))
               }
             >
-              <option value="all">All</option>
+              <option value="all">All stages</option>
+              <option value="fresh">Fresh</option>
+              <option value="unattended">Didn't Pick Up</option>
               <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="cold">Cold</option>
             </select>
           </label>
 
@@ -172,6 +175,7 @@ export function PatientsPage() {
         clientsById={clientsById}
         onView={(pid) => navigate(`/patients/${pid}`)}
         onDelete={(pid) => deletePatient(pid)}
+        onStageChange={(pid, stage) => setPatientStage(pid, stage)}
       />
 
       <Modal
@@ -193,8 +197,8 @@ export function PatientsPage() {
                   nationalId: nationalId.trim() || 'OMN-',
                   zone: zone ?? 'Muscat',
                   clientId: clientId || clients[0]?.id || 'c-unknown',
-                  status: 'active',
                   priority: 'none',
+                  stage: 'fresh',
                   registrationId: `HX-OM-${Math.floor(10000 + Math.random() * 90000)}`,
                   registrationDate: nowIso,
                 })

@@ -50,6 +50,7 @@ const CHART_TOOLTIP = {
 export function DashboardPage() {
   const patients = useHealixStore((s) => s.patients)
   const clients = useHealixStore((s) => s.clients)
+  const hospitals = useHealixStore((s) => s.hospitals)
   const doctors = useHealixStore((s) => s.doctors)
   const appointments = useHealixStore((s) => s.appointments)
   const conversationsByPatientId = useHealixStore((s) => s.conversationsByPatientId)
@@ -66,6 +67,7 @@ export function DashboardPage() {
       computeDashboardAnalytics(
         patients,
         clients,
+        hospitals,
         doctors,
         appointments,
         conversationsByPatientId,
@@ -75,6 +77,7 @@ export function DashboardPage() {
     [
       patients,
       clients,
+      hospitals,
       doctors,
       appointments,
       conversationsByPatientId,

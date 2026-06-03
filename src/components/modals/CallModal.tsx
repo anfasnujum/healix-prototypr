@@ -1,53 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
-import { PhoneOff } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { PhoneMissed, PhoneOff } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { Input } from '../ui/Input'
 import { ZoneDropdown } from '../inputs/ZoneDropdown'
 import { SymptomMultiSelect } from '../inputs/SymptomMultiSelect'
-import { AIRecommendationCard } from '../AIRecommendationCard'
-import type { AIRecommendation, Symptom, Zone } from '../../types'
+import { DateMultiPicker } from '../inputs/DateMultiPicker'
+import { TimeSlotMultiSelect } from '../inputs/TimeSlotMultiSelect'
+import type { PreferredDate, PreferredTimeSlot, Symptom, Zone } from '../../types'
 import { useHealixStore } from '../../store/useHealixStore'
 
 const mockTranscript = [
   { speaker: 'case_manager' as const, text: 'Hello, this is Healix. How are you feeling today?' },
-  { speaker: 'patient' as const, text: 'Not great — I’ve had headaches and fatigue.' },
+  { speaker: 'patient' as const, text: "Not great — I've had headaches and fatigue." },
   { speaker: 'case_manager' as const, text: 'Understood. Any fever or dizziness?' },
   { speaker: 'patient' as const, text: 'Some dizziness, no fever.' },
 ]
-
-function buildRecommendation(zone?: Zone, symptoms?: Symptom[]): AIRecommendation | undefined {
-  if (!zone || !symptoms?.length) return undefined
-  const hasChest = symptoms.includes('Chest Pain') || symptoms.includes('Palpitations')
-  const hasBreath = symptoms.includes('Shortness of Breath')
-  const hasHead = symptoms.includes('Headache') || symptoms.includes('Dizziness')
-  if (hasChest || hasBreath) {
-    return {
-      department: 'Cardiology',
-      suggestedDoctors: [
-        { name: 'Dr. Layla Al-Sulaimi', specialty: 'Interventional Cardiology', hospital: 'Healix Hospital Muscat' },
-        { name: 'Dr. Omar Al-Hashmi', specialty: 'General Medicine', hospital: 'Healix Hospital Muscat' },
-      ],
-      confidence: 0.84,
-    }
-  }
-  if (hasHead) {
-    return {
-      department: 'Neurology',
-      suggestedDoctors: [
-        { name: 'Dr. Sara Al-Mahrooqi', specialty: 'Headache & Migraine', hospital: 'Healix Specialty Center' },
-        { name: 'Dr. Omar Al-Hashmi', specialty: 'Internal Medicine', hospital: 'Healix Hospital Muscat' },
-      ],
-      confidence: 0.72,
-    }
-  }
-  return {
-    department: 'Internal Medicine',
-    suggestedDoctors: [
-      { name: 'Dr. Omar Al-Hashmi', specialty: 'General Medicine', hospital: 'Healix Hospital Muscat' },
-      { name: 'Dr. Maha Al-Amri', specialty: 'Respiratory Medicine', hospital: 'Healix Hospital Muscat' },
-    ],
-    confidence: 0.63,
-  }
-}
 
 export function CallModal({
   open,
@@ -59,23 +26,27 @@ export function CallModal({
   onClose: () => void
 }) {
   const addConversation = useHealixStore((s) => s.addConversation)
+  const recordCallNoAnswer = useHealixStore((s) => s.recordCallNoAnswer)
   const patient = useHealixStore((s) => s.patients.find((p) => p.id === patientId))
 
   const [seconds, setSeconds] = useState(0)
+  const [location, setLocation] = useState('')
   const [zone, setZone] = useState<Zone | undefined>(patient?.zone)
   const [symptoms, setSymptoms] = useState<Symptom[]>([])
-  const [dateStart, setDateStart] = useState('')
-  const [dateEnd, setDateEnd] = useState('')
-  const [timePreset, setTimePreset] = useState<'morning_8_12' | 'afternoon_12_5' | 'evening_5_8'>('morning_8_12')
-
-  const rec = useMemo(() => buildRecommendation(zone, symptoms), [zone, symptoms])
+  const [preferredDates, setPreferredDates] = useState<PreferredDate[]>([])
+  const [preferredTimeSlots, setPreferredTimeSlots] = useState<PreferredTimeSlot[]>([])
 
   useEffect(() => {
     if (!open) return
     setSeconds(0)
+    setLocation('')
+    setZone(patient?.zone)
+    setSymptoms([])
+    setPreferredDates([])
+    setPreferredTimeSlots([])
     const t = window.setInterval(() => setSeconds((s) => s + 1), 1000)
     return () => window.clearInterval(t)
-  }, [open])
+  }, [open, patient?.zone])
 
   useEffect(() => {
     if (!open) return
@@ -90,6 +61,35 @@ export function CallModal({
 
   const mm = String(Math.floor(seconds / 60)).padStart(2, '0')
   const ss = String(seconds % 60).padStart(2, '0')
+
+  const handleEndCall = () => {
+    const createdAt = new Date().toISOString()
+    const dateSummary = preferredDates.length ? preferredDates.join(', ') : '—'
+    const slotSummary = preferredTimeSlots.length ? preferredTimeSlots.join(', ') : '—'
+    addConversation({
+      patientId,
+      kind: 'cm',
+      title: 'Case Manager Call',
+      createdAt,
+      durationSeconds: seconds,
+      summary: `Case manager call saved. Location: ${location.trim() || '—'}. Zone: ${zone ?? '—'}. Symptoms: ${symptoms.join(', ') || '—'}. Dates: ${dateSummary}. Times: ${slotSummary}.`,
+      priorityAfter: patient.priority,
+      transcript: mockTranscript.map((t, i) => ({
+        id: `t-${createdAt}-${i}`,
+        speaker: t.speaker,
+        text: t.text,
+        at: createdAt,
+      })),
+      caseForm: {
+        location: location.trim() || undefined,
+        zone,
+        symptoms,
+        preferredDates: preferredDates.length ? preferredDates : undefined,
+        preferredTimeSlots: preferredTimeSlots.length ? preferredTimeSlots : undefined,
+      },
+    })
+    onClose()
+  }
 
   return (
     <div
@@ -139,42 +139,6 @@ export function CallModal({
                 })}
               </div>
             </div>
-
-            <div className="px-5 py-4">
-              <Button
-                variant="danger"
-                fullWidth
-                onClick={() => {
-                  const createdAt = new Date().toISOString()
-                  addConversation({
-                    patientId,
-                    kind: 'cm',
-                    title: 'Case Manager Call',
-                    createdAt,
-                    durationSeconds: seconds,
-                    summary: `Case manager call saved. Zone: ${zone ?? '—'}. Symptoms: ${symptoms.join(', ') || '—'}.`,
-                    priorityAfter: patient.priority,
-                    transcript: mockTranscript.map((t, i) => ({
-                      id: `t-${createdAt}-${i}`,
-                      speaker: t.speaker,
-                      text: t.text,
-                      at: createdAt,
-                    })),
-                    caseForm: {
-                      zone,
-                      symptoms,
-                      preferredDateRange:
-                        dateStart && dateEnd ? { start: new Date(dateStart).toISOString(), end: new Date(dateEnd).toISOString() } : undefined,
-                      preferredTimeRange: { preset: timePreset },
-                      aiRecommendation: rec,
-                    },
-                  })
-                  onClose()
-                }}
-              >
-                <PhoneOff className="h-4 w-4" /> End Call
-              </Button>
-            </div>
           </div>
 
           <div className="flex h-full flex-col">
@@ -187,67 +151,45 @@ export function CallModal({
 
             <div className="flex-1 overflow-auto px-5 pb-5">
               <div className="space-y-4">
+                <Input
+                  label="Location"
+                  placeholder="Address, landmark, or area…"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
                 <ZoneDropdown label="Zone" value={zone} onChange={setZone} />
                 <SymptomMultiSelect label="Symptoms" value={symptoms} onChange={setSymptoms} />
 
-                {rec && zone && symptoms.length ? <AIRecommendationCard rec={rec} /> : null}
+                <DateMultiPicker
+                  label="Preferred Dates"
+                  value={preferredDates}
+                  onChange={setPreferredDates}
+                />
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <label className="block">
-                    <div className="mb-1 text-sm font-medium text-slate-800">
-                      Preferred Date (Start)
-                    </div>
-                    <input
-                      type="date"
-                      value={dateStart}
-                      onChange={(e) => setDateStart(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
-                    />
-                  </label>
-                  <label className="block">
-                    <div className="mb-1 text-sm font-medium text-slate-800">
-                      Preferred Date (End)
-                    </div>
-                    <input
-                      type="date"
-                      value={dateEnd}
-                      onChange={(e) => setDateEnd(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
-                    />
-                  </label>
-                </div>
-
-                <label className="block">
-                  <div className="mb-1 text-sm font-medium text-slate-800">
-                    Preferred Time Range
-                  </div>
-                  <select
-                    value={timePreset}
-                    onChange={(e) =>
-                      setTimePreset(
-                        e.target.value as 'morning_8_12' | 'afternoon_12_5' | 'evening_5_8',
-                      )
-                    }
-                    className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
-                  >
-                    <option value="morning_8_12">Morning 8–12</option>
-                    <option value="afternoon_12_5">Afternoon 12–5</option>
-                    <option value="evening_5_8">Evening 5–8</option>
-                  </select>
-                </label>
+                <TimeSlotMultiSelect
+                  label="Preferred Time Range"
+                  value={preferredTimeSlots}
+                  onChange={setPreferredTimeSlots}
+                />
               </div>
             </div>
 
             <div className="border-t border-gray-100 px-5 py-4">
-              <Button
-                variant="primary"
-                fullWidth
-                onClick={() => {
-                  // Stored on end call (per spec). Keep button as explicit “Save”.
-                }}
-              >
-                Save
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  variant="danger"
+                  fullWidth
+                  onClick={() => {
+                    recordCallNoAnswer(patientId)
+                    onClose()
+                  }}
+                >
+                  <PhoneMissed className="h-4 w-4" /> Didn&apos;t Pick Up
+                </Button>
+                <Button variant="success" fullWidth onClick={handleEndCall}>
+                  <PhoneOff className="h-4 w-4" /> End Call
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -255,4 +197,3 @@ export function CallModal({
     </div>
   )
 }
-

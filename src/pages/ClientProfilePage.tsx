@@ -10,7 +10,8 @@ import { Modal } from '../components/modals/Modal'
 import { PriorityBadge } from '../components/PriorityBadge'
 import { ZoneDropdown } from '../components/inputs/ZoneDropdown'
 import { useHealixStore } from '../store/useHealixStore'
-import type { PatientStatus, PriorityLevel, Zone } from '../types'
+import { PatientStageSelect } from '../components/PatientStageSelect'
+import type { PriorityLevel, Zone } from '../types'
 
 export function ClientProfilePage() {
   const { id } = useParams()
@@ -19,6 +20,7 @@ export function ClientProfilePage() {
   const patients = useHealixStore((s) => s.patients.filter((p) => p.clientId === id))
   const addPatient = useHealixStore((s) => s.addPatient)
   const deletePatient = useHealixStore((s) => s.deletePatient)
+  const setPatientStage = useHealixStore((s) => s.setPatientStage)
 
   const [addOpen, setAddOpen] = useState(false)
   const [patientForm, setPatientForm] = useState<{
@@ -26,7 +28,6 @@ export function ClientProfilePage() {
     mobile: string
     nationalId: string
     zone?: Zone
-    status: PatientStatus
     priority: PriorityLevel
     registrationId: string
   }>({
@@ -34,7 +35,6 @@ export function ClientProfilePage() {
     mobile: '',
     nationalId: '',
     zone: undefined,
-    status: 'active',
     priority: 'none',
     registrationId: `HX-OM-${Math.floor(10000 + Math.random() * 90000)}`,
   })
@@ -195,7 +195,7 @@ export function ClientProfilePage() {
                 <th className="px-6 py-3">Name</th>
                 <th className="px-6 py-3">Registration ID</th>
                 <th className="px-6 py-3">Zone</th>
-                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Stage</th>
                 <th className="px-6 py-3">Priority</th>
                 <th className="px-6 py-3">Last Contact</th>
                 <th className="px-6 py-3">Actions</th>
@@ -208,7 +208,11 @@ export function ClientProfilePage() {
                   <td className="px-6 py-3 text-slate-600">{p.registrationId}</td>
                   <td className="px-6 py-3 text-slate-600">{p.zone}</td>
                   <td className="px-6 py-3">
-                    <StatusBadge active={p.status === 'active'} />
+                    <PatientStageSelect
+                      value={p.stage}
+                      patientName={p.name}
+                      onChange={(stage) => setPatientStage(p.id, stage)}
+                    />
                   </td>
                   <td className="px-6 py-3">
                     <PriorityBadge level={p.priority} />
@@ -270,8 +274,8 @@ export function ClientProfilePage() {
                   nationalId: patientForm.nationalId.trim() || 'OMN-',
                   zone: patientForm.zone ?? 'Muscat',
                   clientId: id,
-                  status: patientForm.status,
                   priority: patientForm.priority,
+                  stage: 'fresh',
                   registrationId: patientForm.registrationId,
                   registrationDate: nowIso,
                 })
@@ -282,7 +286,6 @@ export function ClientProfilePage() {
                   mobile: '',
                   nationalId: '',
                   zone: undefined,
-                  status: 'active',
                   priority: 'none',
                   registrationId: `HX-OM-${Math.floor(
                     10000 + Math.random() * 90000,

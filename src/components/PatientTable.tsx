@@ -1,10 +1,10 @@
 import { ArrowUpDown, Eye, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type { Client, Patient } from '../types'
+import type { Client, Patient, PatientStage } from '../types'
+import { PatientStageSelect } from './PatientStageSelect'
 import { PriorityBadge } from './PriorityBadge'
-import { StatusBadge } from './StatusBadge'
 
-type SortKey = 'name' | 'registrationId' | 'zone' | 'client' | 'lastActivityAt'
+type SortKey = 'name' | 'registrationId' | 'zone' | 'client' | 'stage' | 'lastActivityAt'
 type SortDir = 'asc' | 'desc'
 
 function initials(name: string) {
@@ -17,11 +17,13 @@ export function PatientTable({
   clientsById,
   onView,
   onDelete,
+  onStageChange,
 }: {
   patients: Patient[]
   clientsById: Record<string, Client>
   onView: (patientId: string) => void
   onDelete: (patientId: string) => void
+  onStageChange: (patientId: string, stage: PatientStage) => void
 }) {
   const [sortKey, setSortKey] = useState<SortKey>('lastActivityAt')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -38,6 +40,8 @@ export function PatientTable({
           return p.zone
         case 'client':
           return clientsById[p.clientId]?.name ?? ''
+        case 'stage':
+          return p.stage
         case 'lastActivityAt':
           return new Date(p.lastActivityAt).getTime()
       }
@@ -78,8 +82,8 @@ export function PatientTable({
               <th className="px-6 py-3">Mobile</th>
               <th className="px-6 py-3">{sortButton('zone', 'Zone')}</th>
               <th className="px-6 py-3">{sortButton('client', 'Client')}</th>
-              <th className="px-6 py-3">Status</th>
               <th className="px-6 py-3">Priority</th>
+              <th className="px-6 py-3">{sortButton('stage', 'Stage')}</th>
               <th className="px-6 py-3">{sortButton('lastActivityAt', 'Last Activity')}</th>
               <th className="px-6 py-3">Actions</th>
             </tr>
@@ -113,10 +117,14 @@ export function PatientTable({
                   {clientsById[p.clientId]?.name ?? '—'}
                 </td>
                 <td className="px-6 py-3">
-                  <StatusBadge active={p.status === 'active'} />
-                </td>
-                <td className="px-6 py-3">
                   <PriorityBadge level={p.priority} />
+                </td>
+                <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
+                  <PatientStageSelect
+                    value={p.stage}
+                    patientName={p.name}
+                    onChange={(stage) => onStageChange(p.id, stage)}
+                  />
                 </td>
                 <td className="px-6 py-3 text-slate-600">
                   {new Date(p.lastActivityAt).toLocaleDateString()}
