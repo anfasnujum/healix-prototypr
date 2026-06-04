@@ -1,10 +1,48 @@
-import { Download } from 'lucide-react'
-import { useMemo } from 'react'
+import { Download, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PatientStageSelect } from '../components/PatientStageSelect'
 import { Button } from '../components/ui/Button'
 import { useHealixStore } from '../store/useHealixStore'
 import type { Patient } from '../types'
+
+function normalizeDigits(value: string) {
+  return value.replace(/\D/g, '')
+}
+
+function findPatientInPool(patients: Patient[], query: string): Patient | 'none' | 'many' {
+  const q = query.trim()
+  if (!q) return 'none'
+
+  const qLower = q.toLowerCase()
+  const qDigits = normalizeDigits(q)
+
+  const exactReg = patients.filter((p) => p.registrationId.toLowerCase() === qLower)
+  if (exactReg.length === 1) return exactReg[0]
+  if (exactReg.length > 1) return 'many'
+
+  if (qDigits.length > 0) {
+    const exactMobile = patients.filter(
+      (p) => normalizeDigits(p.mobile) === qDigits,
+    )
+    if (exactMobile.length === 1) return exactMobile[0]
+    if (exactMobile.length > 1) return 'many'
+
+    const partialMobile = patients.filter((p) =>
+      normalizeDigits(p.mobile).includes(qDigits),
+    )
+    if (partialMobile.length === 1) return partialMobile[0]
+    if (partialMobile.length > 1) return 'many'
+  }
+
+  const partialReg = patients.filter((p) =>
+    p.registrationId.toLowerCase().includes(qLower),
+  )
+  if (partialReg.length === 1) return partialReg[0]
+  if (partialReg.length > 1) return 'many'
+
+  return 'none'
+}
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -18,6 +56,9 @@ export function BenchPage() {
   const benchEntries = useHealixStore((s) => s.benchEntries)
   const loadBenchLeads = useHealixStore((s) => s.loadBenchLeads)
   const setPatientStage = useHealixStore((s) => s.setPatientStage)
+
+  const [patientSearch, setPatientSearch] = useState('')
+  const [searchError, setSearchError] = useState<string | undefined>()
 
   const clientsById = useMemo(
     () => Object.fromEntries(clients.map((c) => [c.id, c])),
@@ -43,6 +84,21 @@ export function BenchPage() {
     [benchEntries, patientsById],
   )
 
+  const openPatientFromSearch = () => {
+    const result = findPatientInPool(patients, patientSearch)
+    if (result === 'none') {
+      setSearchError('No patient found with that reg ID or mobile number.')
+      return
+    }
+    if (result === 'many') {
+      setSearchError('Multiple patients match — enter a full reg ID or mobile number.')
+      return
+    }
+    setSearchError(undefined)
+    setPatientSearch('')
+    navigate(`/patients/${result.id}`)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -58,6 +114,46 @@ export function BenchPage() {
           <Download className="h-4 w-4" />
           Load Leads
         </Button>
+      </div>
+
+      <div className="healix-card px-4 py-3 sm:px-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={patientSearch}
+              onChange={(e) => {
+                setPatientSearch(e.target.value)
+                if (searchError) setSearchError(undefined)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  openPatientFromSearch()
+                }
+              }}
+              placeholder="Search all patients by reg ID or mobile — press Enter"
+              className={[
+                'h-11 w-full rounded-xl border bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition-all duration-200',
+                'placeholder:text-slate-400 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20',
+                searchError ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-200' : 'border-gray-200',
+              ].join(' ')}
+              aria-label="Search patients by registration ID or mobile"
+            />
+          </div>
+          <Button
+            variant="outline"
+            className="shrink-0 sm:min-w-[140px]"
+            onClick={openPatientFromSearch}
+          >
+            <Search className="h-4 w-4" />
+            Find Patient
+          </Button>
+        </div>
+        {searchError ? (
+          <p className="text-xs text-rose-700">{searchError}</p>
+        ) : null}
       </div>
 
       <div className="healix-card overflow-hidden">
