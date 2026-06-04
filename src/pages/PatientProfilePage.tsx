@@ -14,7 +14,6 @@ import { BookAppointmentModal } from '../components/modals/BookAppointmentModal'
 import { CallModal } from '../components/modals/CallModal'
 import { DropLeadModal } from '../components/modals/DropLeadModal'
 import { Modal } from '../components/modals/Modal'
-import { PatientStageButtons } from '../components/PatientStageSelect'
 import { PriorityBadge } from '../components/PriorityBadge'
 import { Button } from '../components/ui/Button'
 import { describeAppointment, formatAppointmentWhen } from '../lib/appointmentSummary'
@@ -34,7 +33,6 @@ export function PatientProfilePage() {
     const p = s.patients.find((pt) => pt.id === id)
     return p ? s.clients.find((c) => c.id === p.clientId) : undefined
   })
-  const setPatientStage = useHealixStore((s) => s.setPatientStage)
   const convos = useHealixStore((s) =>
     id ? (s.conversationsByPatientId[id] ?? EMPTY_CONVERSATIONS) : EMPTY_CONVERSATIONS,
   )
@@ -138,12 +136,6 @@ export function PatientProfilePage() {
                       </span>
                     </>
                   ) : null}
-                </div>
-                <div className="mt-3">
-                  <PatientStageButtons
-                    value={patient.stage}
-                    onChange={(stage) => setPatientStage(patient.id, stage)}
-                  />
                 </div>
               </div>
             </div>

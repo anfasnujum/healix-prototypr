@@ -1,11 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarCheck, Search } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { CallPreferencesDisplay } from '../CallPreferencesDisplay'
-import { buildBookableWeek, hasBookableSlotsThisWeek } from '../../lib/doctorSchedule'
 import { doctorHospitalName } from '../../lib/hospitalLookup'
 import type { Doctor } from '../../types'
 import { EMPTY_CONVERSATIONS, useHealixStore } from '../../store/useHealixStore'
+
+function formatDateLabel(isoDate: string) {
+  const d = new Date(`${isoDate}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return isoDate
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function formatTimeLabel(time: string) {
+  const [h, m] = time.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return time
+  const d = new Date()
+  d.setHours(h, m, 0, 0)
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
 
 export function BookAppointmentModal({
   open,
@@ -21,7 +38,6 @@ export function BookAppointmentModal({
   const patient = useHealixStore((s) => s.patients.find((p) => p.id === patientId))
   const hospitals = useHealixStore((s) => s.hospitals)
   const doctors = useHealixStore((s) => s.doctors)
-  const doctorSchedulesByDoctorId = useHealixStore((s) => s.doctorSchedulesByDoctorId)
   const appointments = useHealixStore((s) => s.appointments)
   const conversations = useHealixStore((s) =>
     patientId
@@ -39,13 +55,11 @@ export function BookAppointmentModal({
     [appointments, rescheduleAppointmentId],
   )
 
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const slotsSectionRef = useRef<HTMLDivElement>(null)
-
   const [hospitalId, setHospitalId] = useState('')
   const [doctorQuery, setDoctorQuery] = useState('')
   const [doctorId, setDoctorId] = useState('')
-  const [slotId, setSlotId] = useState('')
+  const [appointmentDate, setAppointmentDate] = useState('')
+  const [appointmentTime, setAppointmentTime] = useState('')
 
   const lastCall = useMemo(
     () => conversations.find((c) => c.kind === 'cm') ?? conversations[0],
@@ -63,12 +77,16 @@ export function BookAppointmentModal({
       setHospitalId(doctor?.hospitalId ?? '')
       setDoctorId(replacingAppointment.doctorId)
       setDoctorQuery('')
-      setSlotId('')
+      const dateMatch = replacingAppointment.slotId.match(/(\d{4}-\d{2}-\d{2})/)
+      setAppointmentDate(dateMatch?.[1] ?? '')
+      const timeMatch = replacingAppointment.slotTimeLabel?.match(/(\d{1,2}:\d{2})/)
+      setAppointmentTime(timeMatch?.[1] ?? '')
     } else {
       setHospitalId('')
       setDoctorQuery('')
       setDoctorId('')
-      setSlotId('')
+      setAppointmentDate('')
+      setAppointmentTime('')
     }
   }, [open, patientId, replacingAppointment, doctors])
 
@@ -80,14 +98,6 @@ export function BookAppointmentModal({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
-
-  useEffect(() => {
-    if (!doctorId || !slotsSectionRef.current || !scrollRef.current) return
-    const frame = window.requestAnimationFrame(() => {
-      slotsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [doctorId])
 
   const doctorsAtHospital = useMemo(
     () => (hospitalId ? doctors.filter((d) => d.hospitalId === hospitalId) : []),
@@ -107,13 +117,7 @@ export function BookAppointmentModal({
     [doctors, doctorId],
   )
 
-  const week = useMemo(
-    () =>
-      doctorId
-        ? buildBookableWeek(doctorId, doctorSchedulesByDoctorId[doctorId])
-        : [],
-    [doctorId, doctorSchedulesByDoctorId],
-  )
+  const canConfirm = Boolean(doctorId && appointmentDate && appointmentTime)
 
   if (!open || !patient) return null
 
@@ -126,27 +130,30 @@ export function BookAppointmentModal({
       role="dialog"
       aria-modal="true"
     >
-      <div className="flex h-[80vh] w-full max-w-[700px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-white shadow-soft">
+      <div className="flex h-[80vh] w-full max-w-[920px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-white shadow-soft">
         <div className="shrink-0 border-b border-gray-100 px-6 py-4">
           <div className="text-sm font-semibold text-slate-900">
             {rescheduleAppointmentId ? 'Reschedule Appointment' : 'Book Appointment'}
           </div>
           <div className="mt-1 text-xs text-slate-500">
             {rescheduleAppointmentId
-              ? 'Choose a new hospital, doctor, and slot. The previous booking will be cancelled.'
-              : 'Preferences from the latest call are shown below. Choose hospital, doctor, and slot to confirm.'}
+              ? 'Choose a new hospital, doctor, and appointment time. The previous booking will be cancelled.'
+              : 'Call preferences stay on the left. Choose hospital, doctor, date, and time on the right to confirm.'}
           </div>
         </div>
 
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <div className="space-y-4">
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <aside className="w-[300px] shrink-0 overflow-y-auto border-r border-gray-100 bg-gray-50/40 px-5 py-5">
             <CallPreferencesDisplay
               zone={callForm?.zone}
               symptoms={callForm?.symptoms}
               dates={preferredDates}
               timeSlots={preferredTimeSlots}
             />
+          </aside>
 
+          <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="space-y-4">
             <label className="block">
               <div className="mb-1 text-sm font-medium text-slate-800">Hospital</div>
               <select
@@ -155,7 +162,8 @@ export function BookAppointmentModal({
                 onChange={(e) => {
                   setHospitalId(e.target.value)
                   setDoctorId('')
-                  setSlotId('')
+                  setAppointmentDate('')
+                  setAppointmentTime('')
                   setDoctorQuery('')
                 }}
               >
@@ -199,7 +207,8 @@ export function BookAppointmentModal({
                         ].join(' ')}
                         onClick={() => {
                           setDoctorId(d.id)
-                          setSlotId('')
+                          setAppointmentDate('')
+                          setAppointmentTime('')
                         }}
                       >
                         <div className="min-w-0">
@@ -211,22 +220,6 @@ export function BookAppointmentModal({
                           </div>
                           <div className="truncate text-xs text-slate-500">{d.specialty}</div>
                         </div>
-                        <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                          <span
-                            className={[
-                              'h-2 w-2 rounded-full',
-                              hasBookableSlotsThisWeek(
-                                doctorSchedulesByDoctorId[d.id],
-                                d.id,
-                              )
-                                ? 'bg-emerald-500'
-                                : 'bg-gray-300',
-                            ].join(' ')}
-                          />
-                          {hasBookableSlotsThisWeek(doctorSchedulesByDoctorId[d.id], d.id)
-                            ? 'Available'
-                            : 'No slots'}
-                        </span>
                       </button>
                     ))}
                     {filteredDoctors.length === 0 ? (
@@ -238,65 +231,59 @@ export function BookAppointmentModal({
             </div>
 
             {selectedDoctor ? (
-              <div ref={slotsSectionRef} className="healix-card scroll-mt-4 p-4">
-                <div className="mb-2 text-sm font-semibold text-slate-900">Select Slot</div>
+              <div className="healix-card p-4">
+                <div className="mb-2 text-sm font-semibold text-slate-900">Appointment time</div>
                 <p className="mb-3 text-xs text-slate-500">
                   {selectedDoctor.name} · {selectedDoctor.department}
                 </p>
-                <div className="space-y-3">
-                  {week.map((d) => (
-                    <div key={d.dayLabel}>
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {d.dayLabel}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {d.available.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            className={[
-                              'rounded-full border px-3 py-2 text-xs font-semibold transition-all duration-200',
-                              slotId === s.id
-                                ? 'border-healix-teal bg-healix-teal/10 text-healix-navy'
-                                : 'border-gray-200 bg-white text-slate-700 hover:bg-gray-50',
-                            ].join(' ')}
-                            onClick={() => setSlotId(s.id)}
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                        {d.available.length === 0 ? (
-                          <span className="text-xs text-slate-500">No slots</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <div className="mb-1 text-sm font-medium text-slate-800">Date</div>
+                    <input
+                      type="date"
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
+                      value={appointmentDate}
+                      onChange={(e) => setAppointmentDate(e.target.value)}
+                    />
+                  </label>
+                  <label className="block">
+                    <div className="mb-1 text-sm font-medium text-slate-800">Time</div>
+                    <input
+                      type="time"
+                      className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
+                      value={appointmentTime}
+                      onChange={(e) => setAppointmentTime(e.target.value)}
+                    />
+                  </label>
                 </div>
               </div>
             ) : null}
+            </div>
           </div>
         </div>
 
         <div className="shrink-0 border-t border-gray-100 px-6 py-4">
           <Button
             fullWidth
-            disabled={!doctorId || !slotId}
+            disabled={!canConfirm}
             onClick={() => {
-              if (!doctorId || !slotId) return
-              const slot = week.flatMap((d) => d.available).find((s) => s.id === slotId)
+              if (!canConfirm) return
               const doctor = doctors.find((d) => d.id === doctorId)
+              const slotDateLabel = formatDateLabel(appointmentDate)
+              const slotTimeLabel = formatTimeLabel(appointmentTime)
+              const slotId = `${doctorId}-${appointmentDate}-${appointmentTime}`
               const payload = {
                 patientId,
                 clientId: patient.clientId,
                 doctorId,
                 slotId,
-                slotDateLabel: slot?.dayLabel,
-                slotTimeLabel: slot?.label,
+                slotDateLabel,
+                slotTimeLabel,
                 notes: [
                   doctor?.name,
                   doctorHospitalName(doctor, hospitals),
-                  slot?.dayLabel,
-                  slot?.label,
+                  slotDateLabel,
+                  slotTimeLabel,
                 ]
                   .filter(Boolean)
                   .join(' · '),
@@ -312,9 +299,9 @@ export function BookAppointmentModal({
             <CalendarCheck className="h-4 w-4" />
             {rescheduleAppointmentId ? 'Confirm Reschedule' : 'Confirm Booking'}
           </Button>
-          {!doctorId || !slotId ? (
+          {!canConfirm ? (
             <div className="mt-2 text-center text-xs text-slate-500">
-              Select a hospital, doctor, and slot to confirm.
+              Select a hospital, doctor, date, and time to confirm.
             </div>
           ) : null}
         </div>

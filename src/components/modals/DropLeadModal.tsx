@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { Button } from '../ui/Button'
 
+export const DROP_LEAD_REASONS = [
+  'Patient not picking up',
+  'Unable to find suitable appointment',
+  'Doctors unavailable in the zone',
+  'Patient rejected service',
+  'Other',
+] as const
+
+export type DropLeadReason = (typeof DROP_LEAD_REASONS)[number]
+
 export type DropLeadModalProps = {
   open: boolean
   patientName?: string
@@ -15,14 +25,21 @@ export function DropLeadModal({
   onClose,
   onConfirm,
 }: DropLeadModalProps) {
-  const [reason, setReason] = useState('')
+  const [reasonChoice, setReasonChoice] = useState<DropLeadReason | ''>('')
+  const [otherReason, setOtherReason] = useState('')
 
   useEffect(() => {
-    if (!open) setReason('')
+    if (!open) {
+      setReasonChoice('')
+      setOtherReason('')
+    }
   }, [open])
 
-  const trimmed = reason.trim()
-  const canConfirm = trimmed.length > 0
+  const resolvedReason =
+    reasonChoice === 'Other' ? otherReason.trim() : reasonChoice
+  const canConfirm =
+    reasonChoice !== '' &&
+    (reasonChoice !== 'Other' || otherReason.trim().length > 0)
 
   return (
     <Modal
@@ -40,7 +57,7 @@ export function DropLeadModal({
             disabled={!canConfirm}
             onClick={() => {
               if (!canConfirm) return
-              onConfirm(trimmed)
+              onConfirm(resolvedReason)
             }}
           >
             Drop lead
@@ -56,13 +73,31 @@ export function DropLeadModal({
       <label className="block text-sm font-semibold text-slate-900" htmlFor="drop-lead-reason">
         Reason
       </label>
-      <textarea
+      <select
         id="drop-lead-reason"
-        className="mt-2 h-28 w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder="Why are you dropping this lead? (required)"
-      />
+        className="mt-2 h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
+        value={reasonChoice}
+        onChange={(e) => setReasonChoice(e.target.value as DropLeadReason | '')}
+      >
+        <option value="">Select a reason…</option>
+        {DROP_LEAD_REASONS.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      {reasonChoice === 'Other' ? (
+        <label className="mt-4 block" htmlFor="drop-lead-other-reason">
+          <span className="text-sm font-semibold text-slate-900">Please specify</span>
+          <textarea
+            id="drop-lead-other-reason"
+            className="mt-2 h-24 w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition-all duration-200 focus:border-healix-teal/60 focus:ring-2 focus:ring-healix-teal/20"
+            value={otherReason}
+            onChange={(e) => setOtherReason(e.target.value)}
+            placeholder="Enter reason…"
+          />
+        </label>
+      ) : null}
     </Modal>
   )
 }
