@@ -9,6 +9,8 @@ import {
   Stethoscope,
   Users,
 } from 'lucide-react'
+import { roleLabel, userInitials } from '../lib/userDisplay'
+import { useHealixStore } from '../store/useHealixStore'
 
 function SidebarLink({
   to,
@@ -53,6 +55,10 @@ function SidebarLink({
 }
 
 export function Sidebar() {
+  const users = useHealixStore((s) => s.users)
+  const currentUserId = useHealixStore((s) => s.currentUserId)
+  const currentUser = users.find((u) => u.id === currentUserId)
+
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-[240px] bg-healix-navy text-white">
       <div className="flex h-full flex-col px-4 py-5">
@@ -81,24 +87,18 @@ export function Sidebar() {
 
         <div className="mt-auto px-2">
           <div className="mb-3 h-px bg-white/10" />
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white"
-          >
-            <Settings className="h-4 w-4 text-white/70" />
-            Settings
-          </button>
+          <SidebarLink to="/settings" label="Settings" icon={Settings} />
           <div className="mt-3 flex items-center justify-between rounded-2xl bg-white/10 px-3 py-3">
             <div className="flex items-center gap-3">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 text-sm font-semibold text-white">
-                HA
+                {currentUser ? userInitials(currentUser.name) : '—'}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-white">
-                  Hospital Admin
+                  {currentUser?.name ?? 'Unknown User'}
                 </div>
                 <div className="truncate text-xs text-white/60">
-                  Muscat, Oman
+                  {currentUser ? roleLabel(currentUser.role) : '—'}
                 </div>
               </div>
             </div>

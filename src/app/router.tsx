@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '../layouts/AppLayout'
+import { SettingsLayout } from '../layouts/SettingsLayout'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ClientsPage } from '../pages/ClientsPage'
 import { ClientProfilePage } from '../pages/ClientProfilePage'
@@ -9,6 +10,7 @@ import { PatientProfilePage } from '../pages/PatientProfilePage'
 import { HospitalsPage } from '../pages/HospitalsPage'
 import { DoctorsPage } from '../pages/DoctorsPage'
 import { DoctorProfilePage } from '../pages/DoctorProfilePage'
+import { SettingsPage } from '../pages/SettingsPage'
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +28,11 @@ export const router = createBrowserRouter([
       { path: 'patients', element: <PatientsPage /> },
       { path: 'patients/:id', element: <PatientProfilePage /> },
     ],
+  },
+  {
+    path: '/settings',
+    element: <SettingsLayout />,
+    children: [{ index: true, element: <SettingsPage /> }],
   },
 ])
 

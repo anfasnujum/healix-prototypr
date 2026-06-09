@@ -9,6 +9,7 @@ import type {
   ID,
   Patient,
   TimelineEvent,
+  User,
 } from '../types'
 
 const now = new Date()
@@ -433,4 +434,54 @@ export const timelineSeed: TimelineEvent[] = [
     description: 'Priority updated from moderate to urgent after AI check-in.',
   },
 ]
+
+export const usersSeed: User[] = [
+  {
+    id: 'u-admin',
+    name: 'Hospital Admin',
+    email: 'admin@healix.om',
+    password: 'admin123',
+    role: 'admin',
+    status: 'active',
+    createdAt: isoDaysAgo(365),
+  },
+  {
+    id: 'u-cm-1',
+    name: 'Fatima Al-Rashdi',
+    email: 'fatima@healix.om',
+    password: 'cm1234',
+    role: 'case_manager',
+    status: 'active',
+    createdAt: isoDaysAgo(180),
+  },
+  {
+    id: 'u-cm-2',
+    name: 'Khalid Al-Busaidi',
+    email: 'khalid@healix.om',
+    password: 'cm1234',
+    role: 'case_manager',
+    status: 'active',
+    createdAt: isoDaysAgo(120),
+  },
+  {
+    id: 'u-cm-3',
+    name: 'Mariam Al-Hinai',
+    email: 'mariam@healix.om',
+    password: 'cm1234',
+    role: 'case_manager',
+    status: 'active',
+    createdAt: isoDaysAgo(90),
+  },
+  {
+    id: 'u-cm-4',
+    name: 'Yusuf Al-Abri',
+    email: 'yusuf@healix.om',
+    password: 'cm1234',
+    role: 'case_manager',
+    status: 'inactive',
+    createdAt: isoDaysAgo(60),
+  },
+]
+
+export const CURRENT_USER_ID: ID = 'u-admin'
 

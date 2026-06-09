@@ -11,6 +11,8 @@ import type {
   PatientStage,
   Patient,
   TimelineEvent,
+  User,
+  UserStatus,
   ID,
   PriorityLevel,
 } from '../types'
@@ -27,11 +29,13 @@ import {
 import {
   clientsSeed,
   conversationsSeed,
+  CURRENT_USER_ID,
   doctorSchedulesSeed,
   doctorsSeed,
   hospitalsSeed,
   patientsSeed,
   timelineSeed,
+  usersSeed,
 } from '../mock/seed'
 
 const uid = (prefix: string) =>
@@ -53,6 +57,9 @@ export type HealixState = {
   conversationsByPatientId: Record<ID, Conversation[]>
   timelineByPatientId: Record<ID, TimelineEvent[]>
   benchEntries: BenchEntry[]
+
+  users: User[]
+  currentUserId: ID
 
   addClient: (input: Omit<Client, 'id'>) => Client
   deleteClient: (id: ID) => void
@@ -84,6 +91,12 @@ export type HealixState = {
   dropLead: (patientId: ID, reason: string) => void
 
   loadBenchLeads: () => void
+
+  addUser: (input: Omit<User, 'id' | 'createdAt'>) => User
+  updateUser: (id: ID, patch: Partial<Omit<User, 'id' | 'createdAt'>>) => void
+  setUserPassword: (id: ID, password: string) => void
+  setUserStatus: (id: ID, status: UserStatus) => void
+  deleteUser: (id: ID) => void
 }
 
 const groupByPatient = <T extends { patientId: ID }>(items: T[]) =>
@@ -105,6 +118,9 @@ export const useHealixStore = create<HealixState>((set, get) => ({
   conversationsByPatientId: groupByPatient(conversationsSeed),
   timelineByPatientId: groupByPatient(timelineSeed),
   benchEntries: [],
+
+  users: usersSeed,
+  currentUserId: CURRENT_USER_ID,
 
   addClient: (input) => {
     const client: Client = { id: uid('c'), ...input }
@@ -465,6 +481,46 @@ export const useHealixStore = create<HealixState>((set, get) => ({
         leadIds.has(p.id) ? { ...p, stage: 'fresh' as PatientStage } : p,
       ),
     }))
+  },
+
+  addUser: (input) => {
+    const user: User = {
+      id: uid('u'),
+      createdAt: new Date().toISOString(),
+      ...input,
+    }
+    set((s) => ({ users: [user, ...s.users] }))
+    return user
+  },
+
+  updateUser: (id, patch) => {
+    set((s) => ({
+      users: s.users.map((u) => (u.id === id ? { ...u, ...patch } : u)),
+    }))
+  },
+
+  setUserPassword: (id, password) => {
+    const trimmed = password.trim()
+    if (!trimmed) return
+    set((s) => ({
+      users: s.users.map((u) => (u.id === id ? { ...u, password: trimmed } : u)),
+    }))
+  },
+
+  setUserStatus: (id, status) => {
+    if (id === get().currentUserId && status === 'inactive') return
+    set((s) => ({
+      users: s.users.map((u) => (u.id === id ? { ...u, status } : u)),
+    }))
+  },
+
+  deleteUser: (id) => {
+    if (id === get().currentUserId) return
+    const admins = get().users.filter((u) => u.role === 'admin' && u.id !== id)
+    if (get().users.find((u) => u.id === id)?.role === 'admin' && admins.length === 0) {
+      return
+    }
+    set((s) => ({ users: s.users.filter((u) => u.id !== id) }))
   },
 }))
 

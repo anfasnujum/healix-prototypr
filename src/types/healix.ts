@@ -189,3 +189,18 @@ export type Appointment = {
   slotTimeLabel?: string
 }
 
+export type UserRole = 'admin' | 'case_manager'
+
+export type UserStatus = 'active' | 'inactive'
+
+export type User = {
+  id: ID
+  name: string
+  email: string
+  /** Prototype only — not hashed. */
+  password: string
+  role: UserRole
+  status: UserStatus
+  createdAt: string // ISO
+}
+
